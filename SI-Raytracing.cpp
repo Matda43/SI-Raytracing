@@ -114,8 +114,11 @@ int main()
     Vec3b color;
 
     //Components Object
-    Sphere sphere = Sphere{ Vec3{ 400, 500, 0 }, 200 }; //Sphere { center, radius }
-    LightSource lightsource = { Vec3{ 100, 200, 400}, {0, 200, 0}, 1000000 }; //LightSource { origin, emission }
+    Sphere spheres[2]{
+        Sphere{ Vec3{ 400, 300, 0 }, 150 }, //Sphere { center, radius }
+        Sphere{ Vec3{ 400, 700, 0 }, 150 } //Sphere { center, radius }
+    };
+    LightSource lightsource = { Vec3{ 100, 500, 400}, {100, 150, 150}, 1000000 }; //LightSource { origin, emission }
 
     //Parameters
     int albedo = 1;
@@ -131,27 +134,28 @@ int main()
             Ray ray{ Vec3{ (float)x, (float)y, 10 }, Vec3{ 0, 0, 1 } }; //Ray { origin, direction }
 
             //Intersection Rayon - Sphere
-            float t = sphere.intersect(ray);
+            for (Sphere s : spheres) {
+                float t = s.intersect(ray);
+                if (t > 0) { // Intersection found
 
-            if (t > 0) { // Intersection found
+                    Vec3 X = ray.origin + t * ray.direction; //X = O + t * D
 
-                Vec3 X = ray.origin + t * ray.direction; //X = O + t * D
+                    Vec3 d = lightsource.origin - X;
+                    float d2 = d.normSquared();
+                    Vec3 w0 = d / sqrt(d2);
 
-                Vec3 d = lightsource.origin - X;
-                float d2 = d.normSquared();
-                Vec3 w0 = d / sqrt(d2);
+                    Vec3 n = X - s.centre;
+                    float n2 = n.normSquared();
+                    Vec3 N = n / sqrt(n2);
 
-                Vec3 n = X - sphere.centre;
-                float n2 = n.normSquared();
-                Vec3 N = n / sqrt(n2);
+                    double f = w0.scalarProduct(N) / M_PI;
 
-                double f = w0.scalarProduct(N) / M_PI;
+                    double Lc = (lightsource.emission * f * albedo) / d2;
 
-                double Lc = (lightsource.emission * f * albedo) / d2;
-
-                for (int i = 0; i < 3; i++) {
-                    double intensity = clamp255(Lc * lightsource.color[i]);
-                    color[i] = unsigned char(intensity);
+                    for (int i = 0; i < 3; i++) {
+                        double intensity = clamp255(Lc * lightsource.color[i]);
+                        color[i] = unsigned char(intensity);
+                    }
                 }
 
             }
@@ -160,11 +164,11 @@ int main()
         }
     }
 
-    circle(image, Point2f(lightsource.origin.y, lightsource.origin.x), 3, Scalar(0, 255, 255), 1);
+    cv::circle(image, Point2f(lightsource.origin.y, lightsource.origin.x), 3, Scalar(0, 255, 255), 1);
 
 
-    imwrite("./Images/Sphere.png", image);
-    imshow("Display Window", image);
-    waitKey(0);
+    cv::imwrite("./Images/2Spheres.png", image);
+    cv::imshow("Display Window", image);
+    cv::waitKey(0);
     return 0;
 }
