@@ -55,6 +55,12 @@ struct Vec3
     {
         return x * v.x + y * v.y + z * v.z;
     }
+
+    Vec3 getNormal(Vec3 v) {
+        Vec3 n = Vec3{ x - v.x, y - v.y, z - v.z };
+        float n2 = n.normSquared();
+        return n / sqrt(n2);
+    }
 };
 
 Vec3 operator*(const float f, const Vec3 v)
@@ -138,25 +144,43 @@ double getLightColor(float t, Ray ray, LightSource lightsource, Sphere s) {
 int main()
 {
     //Components Image
-    Mat image = Mat::zeros(800, 1000, CV_8UC3);
+    const int width = 1000;
+    const int height = 800;
+    Mat image = Mat::zeros(height, width, CV_8UC3);
     Vec3b defaultColor = { 40, 40, 40 };
     Vec3b color;
 
     //Components Object
+
+    float backgroundDepth = 1600;
     vector<Sphere> spheres;
-    spheres.push_back(Sphere{ Vec3{ 300, 600, 400 }, 100, 1 }); //Sphere { center, radius, albedo }
-    spheres.push_back(Sphere{ Vec3{ 500, 400, 600 }, 150, 1 }); //Sphere { center, radius, albedo }
-    LightSource lightsource = { Vec3{ 200, 700, 100}, {100, 150, 150}, 1000000 }; //LightSource { origin, couleur, emission }
+    spheres.push_back(Sphere{ Vec3{ 500, 300, 400 }, 100, 1 }); //Sphere { center, radius, albedo }
+    spheres.push_back(Sphere{ Vec3{ 500, 700, 400 }, 100, 1 }); //Sphere { center, radius, albedo }
+    spheres.push_back(Sphere{ Vec3{ -height - 100, width / 2, backgroundDepth - 600 }, 1000, 1 }); //Sphere { center, radius, albedo }
+    spheres.push_back(Sphere{ Vec3{ height + height + 100, width / 2, backgroundDepth - 600 }, 1000, 1 }); //Sphere { center, radius, albedo }
+    spheres.push_back(Sphere{ Vec3{ height / 2, -width + 50, backgroundDepth - 600 }, 1000, 1 }); //Sphere { center, radius, albedo }
+    spheres.push_back(Sphere{ Vec3{ height / 2, width + width - 50, backgroundDepth - 600 }, 1000, 1 }); //Sphere { center, radius, albedo }
+    spheres.push_back(Sphere{ Vec3{ height / 2, width / 2, backgroundDepth }, 1000, 1 }); //Sphere { center, radius, albedo }
+    LightSource lightsource = { Vec3{ 350, 500, 100}, {100, 150, 150}, 1000000 }; //LightSource { origin, couleur, emission }
 
     vector<double> Lcs;
     double max_Lc = 0;
+
+    Vec3 rayOrigin = Vec3{ height / 2, width / 2, -1000 };
+
+    float offset = 0.02;
 
     for (int x = 0; x < image.rows; x++)
     {
         for (int y = 0; y < image.cols; y++)
         {
             //Ray 
-            Ray ray{ Vec3{ (float)x, (float)y, 0 }, Vec3{ 0, 0, 1 } }; //Ray { origin, direction }
+            //Ray ray{ Vec3{ (float)x, (float)y, 0 }, Vec3{ 0, 0, 1 } }; //Ray { origin, direction }
+
+            Vec3 pixelOrigin = Vec3{ (float)x,(float)y, 0 };
+            Vec3 rayDirectionNormalise = pixelOrigin.getNormal(rayOrigin);
+            Ray ray{ rayOrigin, rayDirectionNormalise };
+
 
             //Intersection Rayon - Sphere
             float t_min = 0;
@@ -171,13 +195,15 @@ int main()
                 }
             }
 
+            //Intersection Rayon - Light
+
             if (t_min > 0) {
                 Vec3 X = ray.getXIntersect(t_min);
                 Vec3 d = lightsource.origin - X;
                 float d2 = d.normSquared();
                 Vec3 w1 = d / sqrt(d2);
 
-                Ray ray2{ Vec3{ (float)X.x, (float)X.y, X.z }, w1 }; //Ray { origin, direction }
+                Ray ray2{ Vec3{ (float)(X.x + offset * w1.x), (float)(X.y + offset * w1.y), (float)(X.z + offset * w1.z)}, w1 }; //Ray { origin, direction }
 
                 bool visible = true;
                 for (const Sphere& s : spheres) {
@@ -205,8 +231,8 @@ int main()
         }
     }
 
-    cout << max_Lc << endl;
 
+    //Couleur pour l'image
     for (int x = 0; x < image.rows; x++)
     {
         for (int y = 0; y < image.cols; y++)
@@ -229,7 +255,7 @@ int main()
     cv::circle(image, Point2f(lightsource.origin.y, lightsource.origin.x), 3, Scalar(0, 255, 255), 1);
 
 
-    cv::imwrite("./Images/Shadow.png", image);
+    cv::imwrite("./Images/MyImage.png", image);
     cv::imshow("Display Window", image);
 
     cv::waitKey(0);
